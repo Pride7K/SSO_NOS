@@ -21,10 +21,28 @@ import {
     Checkbox
 } from "@material-tailwind/react";
 import 'tailwindcss/tailwind.css';
+import { UserManager, UserManagerSettings } from 'oidc-client-ts';
+
+const userManagerSettings: UserManagerSettings = {
+    authority: 'https://tyr-test.apigee.net/oauth2/v3-0/staging',
+    client_id: 'qMzputtvAabtuS4yseAHuNOW9O3GGMA3',
+    redirect_uri: 'http://localhost:5173/userDetails',
+    post_logout_redirect_uri: 'http://localhost:5173/userDetails',
+
+    response_type: 'code',
+    scope: 'openid profile email api',
+};
+
+interface IUserDetails {
+
+}
 
 const UserDetails = () => {
     const [externalPopup, setExternalPopup] = useState<Window | null>(null);
     const [codeVerifier, setCodeVerifier] = useState(generateCodeVerifier());
+
+
+    const userManager = new UserManager(userManagerSettings);
 
     async function getToken(codeParam: string) {
         var result = await axios.post("https://tyr-test.apigee.net/oauth2/v3-0/staging/token", {
@@ -44,6 +62,7 @@ const UserDetails = () => {
 
 
     }
+
 
     async function getPersonalInfo() {
         var userDataJSON = localStorage.getItem("user")
@@ -113,6 +132,14 @@ const UserDetails = () => {
         [externalPopup]
     )
 
+    useEffect(() => {
+        userManager.signinRedirectCallback().then((user) => {
+            console.log('Usuário autenticado:', user);
+            mutation.mutate({ ...user });
+        }).catch((error) => {
+            console.error('Erro ao autenticar o usuário:', error);
+        });
+    })
 
     const openModalSSONOS = async () => {
         var code_challenge = await generateCodeChallengeFromVerifier(codeVerifier);
@@ -128,9 +155,12 @@ const UserDetails = () => {
         setExternalPopup(popup);
     }
 
+    function openModalSSONOS_OIDC() {
+        userManager.signinRedirect();
+    }
 
-    function logoutUser()
-    {
+
+    function logoutUser() {
         localStorage.removeItem("user")
         queryClient.invalidateQueries(['codes']);
     }
@@ -176,7 +206,7 @@ const UserDetails = () => {
                         </Typography>
                     </CardHeader>
                     <CardFooter className="pt-0 mt-10">
-                        <Button onClick={() => openModalSSONOS()} variant="gradient" fullWidth>
+                        <Button onClick={() => openModalSSONOS_OIDC()} variant="gradient" fullWidth>
                             Sign In With NOSID
                         </Button>
                     </CardFooter>
